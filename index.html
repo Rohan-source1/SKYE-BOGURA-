@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skye — Weather</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #06090f;
+    --surface: #0d1220;
+    --surface2: #141a2e;
+    --card: #111827;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #f0f4ff;
+    --muted: #8892a4;
+    --accent: #4f8bff;
+    --accent2: #7c5cfc;
+    --warm: #ff8c42;
+    --teal: #2dd4bf;
+    --glow: rgba(79,139,255,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, .display { font-family: 'Syne', sans-serif; }
+
+  /* ---- BACKGROUND ---- */
+  .bg-canvas {
+    position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
+  }
+  .bg-orb {
+    position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.25;
+    animation: drift 18s ease-in-out infinite alternate;
+  }
+  .orb1 { width: 600px; height: 600px; background: #1a3a7a; top: -200px; right: -100px; animation-delay: 0s; }
+  .orb2 { width: 400px; height: 400px; background: #0d3352; bottom: -100px; left: -80px; animation-delay: -6s; }
+  .orb3 { width: 300px; height: 300px; background: #2d1b6e; top: 40%; left: 30%; animation-delay: -12s; }
+  @keyframes drift {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(40px, 30px) scale(1.1); }
+  }
+
+  /* Stars */
+  .stars { position: absolute; inset: 0; }
+  .star {
+    position: absolute; background: white; border-radius: 50%;
+    animation: twinkle var(--d, 3s) ease-in-out infinite alternate;
+  }
+  @keyframes twinkle {
+    0% { opacity: 0.1; }
+    100% { opacity: 0.8; }
+  }
+
+  /* ---- LAYOUT ---- */
+  .app { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 32px 24px 60px; }
+
+  /* ---- HEADER ---- */
+  header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 48px;
+  }
+  .logo {
+    font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #4f8bff, #a78bfa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .search-bar {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 40px; padding: 10px 18px; width: 280px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .search-bar:focus-within {
+    border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,139,255,0.15);
+  }
+  .search-bar input {
+    background: none; border: none; outline: none; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 14px; width: 100%;
+  }
+  .search-bar input::placeholder { color: var(--muted); }
+  .search-icon { color: var(--muted); font-size: 14px; flex-shrink: 0; }
+  .nav-actions { display: flex; gap: 10px; }
+  .btn-ghost {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 13px;
+    padding: 8px 16px; border-radius: 20px; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-ghost:hover { border-color: var(--border2); color: var(--text); }
+  .btn-ghost.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+  /* ---- HERO CARD ---- */
+  .hero-grid {
+    display: grid; grid-template-columns: 1fr 380px; gap: 20px; margin-bottom: 20px;
+  }
+  .hero-card {
+    background: linear-gradient(135deg, #0f1e3d 0%, #0d1525 50%, #080f1f 100%);
+    border: 1px solid var(--border2); border-radius: 28px; padding: 40px;
+    position: relative; overflow: hidden;
+    animation: fadeUp 0.6s ease both;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .hero-card::before {
+    content: ''; position: absolute; inset: 0; border-radius: 28px;
+    background: radial-gradient(ellipse at top right, rgba(79,139,255,0.12), transparent 60%);
+    pointer-events: none;
+  }
+
+  .location-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  }
+  .location-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--teal);
+    box-shadow: 0 0 8px var(--teal);
+    animation: pulse 2s ease infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.3); } }
+  .location-name { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 600; color: var(--teal); }
+  .location-country { font-size: 13px; color: var(--muted); }
+
+  .temp-row {
+    display: flex; align-items: flex-start; gap: 20px; margin: 28px 0 12px;
+  }
+  .big-temp {
+    font-family: 'Syne', sans-serif; font-size: 110px; font-weight: 800;
+    line-height: 1; letter-spacing: -4px;
+    background: linear-gradient(180deg, #ffffff 0%, #8ab4ff 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .temp-unit-block { padding-top: 22px; }
+  .temp-unit { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 600; color: var(--muted); }
+  .feels-like { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+  .condition-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(79,139,255,0.12); border: 1px solid rgba(79,139,255,0.25);
+    border-radius: 20px; padding: 6px 16px; font-size: 14px; font-weight: 500;
+    color: #a5c3ff; margin-bottom: 32px;
+  }
+  .condition-badge .cicon { font-size: 18px; }
+
+  .stats-row {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    padding-top: 24px; border-top: 1px solid var(--border);
+  }
+  .stat-item { }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 6px; }
+  .stat-value { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; color: var(--text); }
+  .stat-sub { font-size: 11px; color: var(--muted); }
+
+  /* Weather orb visual */
+  .weather-visual-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 28px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative; overflow: hidden; padding: 30px 20px;
+    animation: fadeUp 0.6s ease 0.1s both;
+  }
+  .orb-scene {
+    width: 200px; height: 200px; position: relative; display: flex;
+    align-items: center; justify-content: center; margin-bottom: 20px;
+  }
+  .orb-bg {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #2a4fa0, #0d1a3d 70%);
+    box-shadow: 0 0 60px rgba(79,139,255,0.3), inset 0 0 40px rgba(0,0,50,0.5);
+    animation: orbFloat 4s ease-in-out infinite alternate;
+  }
+  @keyframes orbFloat {
+    0% { transform: translateY(0); box-shadow: 0 0 60px rgba(79,139,255,0.3); }
+    100% { transform: translateY(-10px); box-shadow: 0 20px 60px rgba(79,139,255,0.4); }
+  }
+  .orb-glare {
+    position: absolute; width: 60px; height: 40px; border-radius: 50%;
+    background: rgba(255,255,255,0.15); top: 28px; left: 38px; transform: rotate(-30deg);
+    filter: blur(8px);
+  }
+  .moon-icon {
+    font-size: 70px; z-index: 1; filter: drop-shadow(0 0 20px rgba(200,220,255,0.5));
+    animation: moonGlow 3s ease-in-out infinite alternate;
+  }
+  @keyframes moonGlow {
+    0% { filter: drop-shadow(0 0 10px rgba(200,220,255,0.3)); }
+    100% { filter: drop-shadow(0 0 30px rgba(200,220,255,0.7)); }
+  }
+  .time-display {
+    font-family: 'Syne', sans-serif; font-size: 38px; font-weight: 700;
+    letter-spacing: -1px; margin-bottom: 4px; text-align: center;
+  }
+  .date-display { font-size: 14px; color: var(--muted); text-align: center; }
+
+  .sky-quality {
+    width: 100%; padding: 16px; background: var(--surface2); border-radius: 16px;
+    margin-top: 20px;
+  }
+  .sq-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 10px; }
+  .sq-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .sq-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--teal), var(--accent));
+    animation: fillBar 1.2s ease 0.5s both;
+    transform-origin: left;
+  }
+  @keyframes fillBar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  .sq-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+  /* ---- FORECAST ROW ---- */
+  .section-title {
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .forecast-strip {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;
+    margin-bottom: 20px; animation: fadeUp 0.6s ease 0.25s both;
+  }
+  .forecast-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+    padding: 20px 14px; text-align: center;
+    transition: background 0.2s, border-color 0.2s, transform 0.2s;
+    cursor: pointer;
+  }
+  .forecast-card:hover, .forecast-card.active {
+    background: var(--surface2); border-color: var(--border2); transform: translateY(-3px);
+  }
+  .forecast-card.active { border-color: var(--accent); }
+  .fc-day { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 12px; }
+  .fc-icon { font-size: 28px; margin-bottom: 10px; display: block; }
+  .fc-temp { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .fc-rain { font-size: 11px; color: #6aabff; }
+
+  /* ---- BOTTOM GRID ---- */
+  .bottom-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;
+    animation: fadeUp 0.6s ease 0.35s both;
+  }
+
+  .mini-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 22px;
+    position: relative; overflow: hidden;
+  }
+  .mini-card::after {
+    content: ''; position: absolute; top: 0; right: 0; width: 80px; height: 80px;
+    border-radius: 50%; opacity: 0.05; transform: translate(20px, -20px);
+  }
+  .mc-icon { font-size: 22px; margin-bottom: 12px; display: block; }
+  .mc-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 8px; }
+  .mc-value { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  .mc-sub { font-size: 12px; color: var(--muted); }
+  .mc-bar-track { height: 4px; background: var(--border); border-radius: 2px; margin-top: 14px; overflow: hidden; }
+  .mc-bar-fill { height: 100%; border-radius: 2px; animation: fillBar 1.5s ease both; transform-origin: left; }
+  .bar-blue { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+  .bar-amber { background: linear-gradient(90deg, #d97706, #fbbf24); }
+  .bar-teal { background: linear-gradient(90deg, #0d9488, #2dd4bf); }
+
+  /* compass */
+  .compass-wrap { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
+  .compass {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--surface2); border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; flex-shrink: 0;
+  }
+  .compass-needle {
+    width: 4px; height: 22px; border-radius: 2px;
+    background: linear-gradient(180deg, #ef4444, #1e40af);
+    transform-origin: bottom center;
+    transform: rotate(225deg);
+    position: relative; top: -5px;
+  }
+  .compass-info .mc-value { font-size: 20px; }
+
+  /* UV Index ring */
+  .uv-ring-wrap { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
+  .uv-ring { position: relative; width: 56px; height: 56px; flex-shrink: 0; }
+  .uv-ring svg { transform: rotate(-90deg); }
+  .uv-ring-label {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--warm);
+  }
+
+  /* Sunrise/Sunset */
+  .sun-arc-wrap { margin-top: 12px; position: relative; height: 60px; }
+  .sun-arc-svg { width: 100%; }
+
+  /* ---- HOURLY TEMP CHART ---- */
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+    padding: 22px; margin-bottom: 20px; animation: fadeUp 0.6s ease 0.3s both;
+  }
+  .chart-inner { position: relative; height: 90px; margin-top: 12px; }
+  .chart-inner canvas { width: 100% !important; }
+  .temp-sparkline { width: 100%; height: 80px; }
+
+  /* ---- FOOTER ---- */
+  footer {
+    text-align: center; padding-top: 40px; color: var(--muted); font-size: 12px;
+    border-top: 1px solid var(--border); margin-top: 40px;
+  }
+  .unit-toggle { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; margin-left: 8px; }
+  .unit-btn { padding: 6px 14px; font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; border: none; background: none; color: var(--muted); transition: all 0.2s; }
+  .unit-btn.active { background: var(--accent); color: white; }
+
+  @media (max-width: 900px) {
+    .hero-grid { grid-template-columns: 1fr; }
+    .forecast-strip { grid-template-columns: repeat(3, 1fr); }
+    .bottom-grid { grid-template-columns: 1fr 1fr; }
+    .big-temp { font-size: 80px; }
+  }
+  @media (max-width: 600px) {
+    .forecast-strip { grid-template-columns: repeat(2, 1fr); }
+    .bottom-grid { grid-template-columns: 1fr; }
+    .search-bar { display: none; }
+    header { margin-bottom: 28px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-canvas">
+  <div class="bg-orb orb1"></div>
+  <div class="bg-orb orb2"></div>
+  <div class="bg-orb orb3"></div>
+  <div class="stars" id="stars"></div>
+</div>
+
+<div class="app">
+  <header>
+    <div class="logo">✦ Skye</div>
+    <div class="search-bar">
+      <span class="search-icon">⌕</span>
+      <input type="text" placeholder="Search city..." id="searchInput" />
+    </div>
+    <div class="nav-actions">
+      <button class="btn-ghost active" id="btnF" onclick="setUnit('F')">°F</button>
+      <button class="btn-ghost" id="btnC" onclick="setUnit('C')">°C</button>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <div class="hero-grid">
+    <div class="hero-card">
+      <div class="location-row">
+        <div class="location-dot"></div>
+        <span class="location-name">Bogra</span>
+        <span class="location-country">— Bangladesh</span>
+      </div>
+
+      <div class="temp-row">
+        <div class="big-temp" id="mainTemp">78</div>
+        <div class="temp-unit-block">
+          <div class="temp-unit" id="mainUnit">°F</div>
+          <div class="feels-like" id="feelsLike">Feels like 81°</div>
+        </div>
+      </div>
+
+      <div class="condition-badge">
+        <span class="cicon">🌙</span>
+        <span>Clear Night</span>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-item">
+          <div class="stat-label">High Today</div>
+          <div class="stat-value" id="todayHigh">96°</div>
+          <div class="stat-sub" id="hiUnit">Fahrenheit</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Precip. Chance</div>
+          <div class="stat-value">0%</div>
+          <div class="stat-sub">No rain expected</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Condition</div>
+          <div class="stat-value" style="font-size:16px; margin-top:4px;">Clear Sky</div>
+          <div class="stat-sub">Night time</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="weather-visual-card">
+      <div class="orb-scene">
+        <div class="orb-bg"></div>
+        <div class="orb-glare"></div>
+        <div class="moon-icon">🌙</div>
+      </div>
+      <div class="time-display" id="clockDisplay">--:--</div>
+      <div class="date-display" id="dateDisplay">Thursday, April 2, 2026</div>
+
+      <div class="sky-quality" style="margin-top: 18px;">
+        <div class="sq-label">Visibility Quality</div>
+        <div class="sq-bar"><div class="sq-fill" style="width: 85%;"></div></div>
+        <div class="sq-labels"><span>Poor</span><span>Excellent</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEMP SPARKLINE CHART -->
+  <div class="chart-card">
+    <div class="section-title">Hourly Temperature</div>
+    <div class="chart-inner">
+      <canvas id="tempChart" class="temp-sparkline"></canvas>
+    </div>
+  </div>
+
+  <!-- 5-DAY FORECAST -->
+  <div class="section-title">5-Day Forecast</div>
+  <div class="forecast-strip" id="forecastStrip">
+    <!-- Injected by JS -->
+  </div>
+
+  <!-- DETAIL CARDS -->
+  <div class="bottom-grid">
+    <!-- Humidity -->
+    <div class="mini-card">
+      <span class="mc-icon">💧</span>
+      <div class="mc-label">Humidity</div>
+      <div class="mc-value">72%</div>
+      <div class="mc-sub">High for April</div>
+      <div class="mc-bar-track"><div class="mc-bar-fill bar-blue" style="width:72%;"></div></div>
+    </div>
+
+    <!-- Wind -->
+    <div class="mini-card">
+      <span class="mc-icon">🌬️</span>
+      <div class="mc-label">Wind</div>
+      <div class="compass-wrap">
+        <div class="compass"><div class="compass-needle"></div></div>
+        <div class="compass-info">
+          <div class="mc-value">12 km/h</div>
+          <div class="mc-sub">South-West</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UV Index -->
+    <div class="mini-card">
+      <span class="mc-icon">☀️</span>
+      <div class="mc-label">UV Index</div>
+      <div class="uv-ring-wrap">
+        <div class="uv-ring">
+          <svg width="56" height="56" viewBox="0 0 56 56">
+            <circle cx="28" cy="28" r="22" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="5"/>
+            <circle cx="28" cy="28" r="22" fill="none" stroke="url(#uvGrad)" stroke-width="5"
+              stroke-dasharray="138" stroke-dashoffset="48" stroke-linecap="round"/>
+            <defs>
+              <linearGradient id="uvGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#f97316"/>
+                <stop offset="100%" stop-color="#fbbf24"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="uv-ring-label">8</div>
+        </div>
+        <div>
+          <div class="mc-value" style="font-size:20px; color: var(--warm);">Very High</div>
+          <div class="mc-sub">Protect your skin</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sunrise/Sunset -->
+    <div class="mini-card" style="grid-column: span 2;">
+      <span class="mc-icon">🌅</span>
+      <div class="mc-label">Sun Schedule</div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+        <div>
+          <div style="font-size:11px; color: var(--muted); margin-bottom:4px;">SUNRISE</div>
+          <div style="font-family:'Syne',sans-serif; font-size:24px; font-weight:700; color:#fbbf24;">6:02 AM</div>
+        </div>
+        <div class="sun-arc-wrap" style="flex:1; margin: 0 20px; height: 50px;">
+          <svg viewBox="0 0 200 50" class="sun-arc-svg">
+            <path d="M10 45 Q100 -10 190 45" fill="none" stroke="rgba(251,191,36,0.2)" stroke-width="1.5"/>
+            <path d="M10 45 Q100 -10 190 45" fill="none" stroke="#fbbf24" stroke-width="1.5"
+              stroke-dasharray="240" stroke-dashoffset="0" opacity="0.6"/>
+            <circle cx="168" cy="18" r="6" fill="#fbbf24" opacity="0.9">
+              <animate attributeName="opacity" values="0.6;1;0.6" dur="3s" repeatCount="indefinite"/>
+            </circle>
+          </svg>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:11px; color: var(--muted); margin-bottom:4px;">SUNSET</div>
+          <div style="font-family:'Syne',sans-serif; font-size:24px; font-weight:700; color:#f97316;">6:31 PM</div>
+        </div>
+      </div>
+      <div style="text-align:center; font-size:12px; color: var(--muted); margin-top: 10px;">Day length: 12h 29m</div>
+    </div>
+
+    <!-- Pressure -->
+    <div class="mini-card">
+      <span class="mc-icon">🧭</span>
+      <div class="mc-label">Pressure</div>
+      <div class="mc-value">1009 <span style="font-size:14px;color:var(--muted);">hPa</span></div>
+      <div class="mc-sub">Slightly low</div>
+      <div class="mc-bar-track"><div class="mc-bar-fill bar-teal" style="width:55%;"></div></div>
+    </div>
+  </div>
+
+  <footer>
+    <p>Weather data for Bogra, Bangladesh · Updated just now · Built with ✦ Skye</p>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+  // Stars
+  const starsEl = document.getElementById('stars');
+  for (let i = 0; i < 80; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() * 2.5 + 0.5;
+    s.style.cssText = `
+      left:${Math.random()*100}%;top:${Math.random()*100}%;
+      width:${size}px;height:${size}px;
+      --d:${(Math.random()*4+2).toFixed(1)}s;
+      animation-delay:${(Math.random()*5).toFixed(1)}s;
+    `;
+    starsEl.appendChild(s);
+  }
+
+  // Clock
+  function updateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2,'0');
+    const m = String(now.getMinutes()).padStart(2,'0');
+    document.getElementById('clockDisplay').textContent = h + ':' + m;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // Weather data
+  const weatherData = {
+    tempF: 78.2,
+    highF: 95.5,
+    feelsLikeF: 81,
+    forecast: [
+      { day: 'THU', icon: '🌙', highF: 95.5, rain: 0 },
+      { day: 'FRI', icon: '☀️', highF: 96.2, rain: 0 },
+      { day: 'SAT', icon: '⛅', highF: 96.0, rain: 10 },
+      { day: 'SUN', icon: '⛅', highF: 94.4, rain: 10 },
+      { day: 'MON', icon: '🌤️', highF: 94.5, rain: 10 },
+    ]
+  };
+
+  let unit = 'F';
+
+  function toC(f) { return Math.round((f - 32) * 5/9); }
+
+  function setUnit(u) {
+    unit = u;
+    document.getElementById('btnF').classList.toggle('active', u === 'F');
+    document.getElementById('btnC').classList.toggle('active', u === 'C');
+    renderWeather();
+  }
+
+  function renderWeather() {
+    const isF = unit === 'F';
+    const temp = isF ? Math.round(weatherData.tempF) : toC(weatherData.tempF);
+    const high = isF ? Math.round(weatherData.highF) : toC(weatherData.highF);
+    const feels = isF ? Math.round(weatherData.feelsLikeF) : toC(weatherData.feelsLikeF);
+
+    document.getElementById('mainTemp').textContent = temp;
+    document.getElementById('mainUnit').textContent = '°' + unit;
+    document.getElementById('feelsLike').textContent = `Feels like ${feels}°`;
+    document.getElementById('todayHigh').textContent = high + '°';
+    document.getElementById('hiUnit').textContent = isF ? 'Fahrenheit' : 'Celsius';
+
+    const strip = document.getElementById('forecastStrip');
+    strip.innerHTML = weatherData.forecast.map((d, i) => {
+      const h = isF ? Math.round(d.highF) : toC(d.highF);
+      return `
+        <div class="forecast-card ${i === 0 ? 'active' : ''}">
+          <div class="fc-day">${d.day}</div>
+          <span class="fc-icon">${d.icon}</span>
+          <div class="fc-temp">${h}°</div>
+          <div class="fc-rain">${d.rain ? '💧 ' + d.rain + '%' : '—'}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  renderWeather();
+
+  // Sparkline
+  const hoursLabel = ['6AM','7AM','8AM','9AM','10AM','11AM','12PM','1PM','2PM','3PM','4PM','5PM','6PM','7PM','8PM','9PM','10PM','11PM'];
+  const hourTempsF = [82,81,83,87,91,94,96,96,95,94,91,88,85,83,81,80,79,78];
+
+  function getHourTemps() {
+    if (unit === 'C') return hourTempsF.map(f => toC(f));
+    return hourTempsF;
+  }
+
+  let sparkChart;
+  function renderChart() {
+    const ctx = document.getElementById('tempChart').getContext('2d');
+    const data = getHourTemps();
+    const grad = ctx.createLinearGradient(0, 0, 0, 90);
+    grad.addColorStop(0, 'rgba(79,139,255,0.35)');
+    grad.addColorStop(1, 'rgba(79,139,255,0)');
+
+    if (sparkChart) sparkChart.destroy();
+    sparkChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: hoursLabel,
+        datasets: [{
+          data,
+          borderColor: '#4f8bff',
+          borderWidth: 2,
+          pointRadius: 4,
+          pointBackgroundColor: '#4f8bff',
+          pointBorderColor: '#06090f',
+          pointBorderWidth: 2,
+          fill: true,
+          backgroundColor: grad,
+          tension: 0.45,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: {
+          backgroundColor: '#0d1220', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+          titleColor: '#8892a4', bodyColor: '#f0f4ff',
+          callbacks: { label: (ctx) => ` ${ctx.parsed.y}°${unit}` }
+        }},
+        scales: {
+          x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8892a4', font: { size: 11 } } },
+          y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8892a4', font: { size: 11 }, callback: v => v + '°' } }
+        }
+      }
+    });
+  }
+
+  renderChart();
+
+  const origSetUnit = setUnit;
+  window.setUnit = function(u) { origSetUnit(u); renderChart(); }
+</script>
+</body>
+</html>
